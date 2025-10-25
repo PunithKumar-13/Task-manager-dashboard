@@ -30,6 +30,23 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => {
     console.log('MongoDB connected');
-    app.listen(process.env.PORT || 5000, () => console.log(`Server running on port ${process.env.PORT}`));
+    // Start server with port conflict handling (tries next port on EADDRINUSE)
+    const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 5000;
+
+    function startServer(port) {
+        const server = app.listen(port, () => console.log(`Server running on port ${port}`));
+
+        server.on('error', (err) => {
+            if (err && err.code === 'EADDRINUSE') {
+                console.error(`Port ${port} in use, attempting port ${port + 1}...`);
+                setTimeout(() => startServer(port + 1), 500);
+            } else {
+                console.error('Server error:', err);
+                process.exit(1);
+            }
+        });
+    }
+
+    startServer(DEFAULT_PORT);
 })
 .catch(err => console.error(err));
